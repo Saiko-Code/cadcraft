@@ -106,7 +106,7 @@ pub fn default_workspace() -> Workspace {
                 SplitAxis::Horizontal,
                 SplitSize::FixedSecond(PALETTES_WIDTH),
                 tabs(Panel::Canvas),
-                dock(Side::End, PALETTES_WIDTH, &[Panel::Layers, Panel::Blocks, Panel::Properties]),
+                dock(Side::End, PALETTES_WIDTH, &[Panel::Layers, Panel::Properties]),
             ),
         )),
         floating: Vec::new(),
@@ -284,15 +284,10 @@ fn sync(workspace: &mut Workspace, app: &crate::CadApp) -> Result<(), String> {
     set_visible(workspace, Panel::ToolSets, app.ui.show_toolsets)?;
     if !app.ui.show_palettes {
         set_visible(workspace, Panel::Layers, false)?;
-        set_visible(workspace, Panel::Blocks, false)?;
         set_visible(workspace, Panel::Properties, false)?;
-    } else if !workspace.layout.contains(&Panel::Layers)
-        && !workspace.layout.contains(&Panel::Blocks)
-        && !workspace.layout.contains(&Panel::Properties)
-    {
+    } else if !workspace.layout.contains(&Panel::Layers) && !workspace.layout.contains(&Panel::Properties) {
         // Reopen the palette that closed last before the one recorded beside it.
         set_visible(workspace, Panel::Properties, true)?;
-        set_visible(workspace, Panel::Blocks, true)?;
         set_visible(workspace, Panel::Layers, true)?;
     }
     Ok(())
@@ -300,8 +295,7 @@ fn sync(workspace: &mut Workspace, app: &crate::CadApp) -> Result<(), String> {
 
 fn publish_visibility(app: &mut crate::CadApp, workspace: &Workspace) {
     app.ui.show_toolsets = workspace.layout.contains(&Panel::ToolSets);
-    app.ui.show_palettes =
-        workspace.layout.contains(&Panel::Layers) || workspace.layout.contains(&Panel::Blocks) || workspace.layout.contains(&Panel::Properties);
+    app.ui.show_palettes = workspace.layout.contains(&Panel::Layers) || workspace.layout.contains(&Panel::Properties);
 }
 
 pub fn command(app: &mut crate::CadApp, reset: bool, params: &Value) -> Result<Value, String> {
