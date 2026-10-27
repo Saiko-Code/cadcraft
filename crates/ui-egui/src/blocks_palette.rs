@@ -23,9 +23,11 @@ enum ViewMode {
     List,
 }
 
-/// Per-revision cached vector display lists for block thumbnail previews.
+/// Per-drawing and per-revision cached vector display lists for block thumbnail previews.
 #[derive(Clone, Default)]
 struct ThumbnailCache {
+    /// Drawing identity counter.
+    uid: u64,
     /// Drawing revision counter when these thumbnails were generated.
     revision: u64,
     /// Cached vector display lists keyed by block name.
@@ -45,6 +47,7 @@ pub fn blocks_panel(app: &mut CadApp, ui: &mut egui::Ui) {
     };
 
     let doc = st.doc.clone();
+    let uid = st.uid;
     let revision = st.revision;
 
     let mut block_infos: Vec<(String, usize, String)> = doc
@@ -65,7 +68,8 @@ pub fn blocks_panel(app: &mut CadApp, ui: &mut egui::Ui) {
 
     let cache_id = ui.scope_id().with("blocks_palette_thumb_cache");
     let mut cache = ui.data_mut(|d| d.get_temp::<ThumbnailCache>(cache_id)).unwrap_or_default();
-    if cache.revision != revision {
+    if cache.uid != uid || cache.revision != revision {
+        cache.uid = uid;
         cache.revision = revision;
         cache.thumbnails.clear();
     }
