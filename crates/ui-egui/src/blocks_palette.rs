@@ -54,15 +54,15 @@ pub fn blocks_panel(app: &mut CadApp, ui: &mut egui::Ui) {
     let total_count = block_infos.len();
 
     // 🔍 Search query from temporary UI storage
-    let search_id = ui.id().with("blocks_palette_search");
+    let search_id = ui.scope_id().with("blocks_palette_search");
     let mut search_query = ui.data_mut(|d| d.get_temp::<String>(search_id)).unwrap_or_default();
 
     // 👁️ View mode (Grid / List)
-    let view_mode_id = ui.id().with("blocks_palette_view_mode");
+    let view_mode_id = ui.scope_id().with("blocks_palette_view_mode");
     let mut view_mode = ui.data_mut(|d| d.get_temp::<ViewMode>(view_mode_id)).unwrap_or(ViewMode::Grid);
 
     // 🖼️ Thumbnail cache per drawing revision
-    let cache_id = ui.id().with("blocks_palette_thumb_cache");
+    let cache_id = ui.scope_id().with("blocks_palette_thumb_cache");
     let mut cache = ui.data_mut(|d| d.get_temp::<ThumbnailCache>(cache_id)).unwrap_or_default();
     if cache.revision != revision {
         cache.revision = revision;

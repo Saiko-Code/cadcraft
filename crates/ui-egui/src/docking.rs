@@ -149,10 +149,11 @@ fn docked(layout: &Layout<Panel>, panel: Panel) -> bool {
 fn home_anchor(layout: &Layout<Panel>, panel: Panel) -> Option<(Panel, bool)> {
     let neighbours: &[(Panel, bool)] = match panel {
         Panel::Canvas | Panel::ToolSets => &[],
-        Panel::Layers => &[(Panel::Properties, false), (Panel::ExternalRefs, false)],
-        Panel::Properties => &[(Panel::Layers, true), (Panel::ExternalRefs, false)],
-        Panel::ExternalRefs => &[(Panel::Properties, true), (Panel::Layers, true)],
-        Panel::QuickCalc => &[(Panel::ExternalRefs, true), (Panel::Properties, true), (Panel::Layers, true)],
+        Panel::Layers => &[(Panel::Blocks, false), (Panel::Properties, false), (Panel::ExternalRefs, false)],
+        Panel::Blocks => &[(Panel::Layers, true), (Panel::Properties, false), (Panel::ExternalRefs, false)],
+        Panel::Properties => &[(Panel::Blocks, true), (Panel::Layers, true), (Panel::ExternalRefs, false)],
+        Panel::ExternalRefs => &[(Panel::Properties, true), (Panel::Blocks, true), (Panel::Layers, true)],
+        Panel::QuickCalc => &[(Panel::ExternalRefs, true), (Panel::Properties, true), (Panel::Blocks, true), (Panel::Layers, true)],
     };
     if let Some(found) = neighbours.iter().copied().find(|(neighbour, _)| docked(layout, *neighbour)) {
         return Some(found);
