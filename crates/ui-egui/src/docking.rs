@@ -17,12 +17,13 @@ pub enum Panel {
     QuickCalc,
     Layers,
     Properties,
+    Blocks,
     #[serde(rename = "externalReferences")]
     ExternalRefs,
 }
 
 impl Panel {
-    pub const ALL: &[Self] = &[Self::Canvas, Self::ToolSets, Self::Layers, Self::Properties, Self::ExternalRefs];
+    pub const ALL: &[Self] = &[Self::Canvas, Self::ToolSets, Self::Layers, Self::Properties, Self::Blocks, Self::ExternalRefs];
     pub fn id(self) -> &'static str {
         match self {
             Self::Canvas => "canvas",
@@ -30,6 +31,7 @@ impl Panel {
             Self::QuickCalc => "quickCalc",
             Self::Layers => "layers",
             Self::Properties => "properties",
+            Self::Blocks => "blocks",
             Self::ExternalRefs => "externalReferences",
         }
     }
@@ -40,6 +42,7 @@ impl Panel {
             Self::QuickCalc => "QuickCalc",
             Self::Layers => "Layers",
             Self::Properties => "Properties",
+            Self::Blocks => "Blocks",
             Self::ExternalRefs => "External References",
         }
     }
@@ -52,6 +55,7 @@ impl Panel {
             Self::QuickCalc => Some(Icon::Table),
             Self::Layers => Some(Icon::Layers),
             Self::Properties => Some(Icon::Properties),
+            Self::Blocks => Some(Icon::Blocks),
             Self::ExternalRefs => Some(Icon::Attach),
         }
     }
@@ -102,7 +106,7 @@ pub fn default_workspace() -> Workspace {
                 SplitAxis::Horizontal,
                 SplitSize::FixedSecond(PALETTES_WIDTH),
                 tabs(Panel::Canvas),
-                dock(Side::End, PALETTES_WIDTH, &[Panel::Layers, Panel::Properties]),
+                dock(Side::End, PALETTES_WIDTH, &[Panel::Layers, Panel::Blocks, Panel::Properties]),
             ),
         )),
         floating: Vec::new(),
@@ -411,6 +415,9 @@ impl DockContent<Panel> for Panels<'_> {
                     crate::shortcut_menus::palette(app, ui, crate::palettes::properties_section, crate::shortcut_menus::properties_entries)
                 });
             }
+            Panel::Blocks => {
+                crate::blocks_palette::blocks_panel(app, ui);
+            }
             Panel::ExternalRefs => {
                 egui::ScrollArea::both().id_salt("dock-xrefs").auto_shrink([false, false]).show(ui, |ui| crate::xrefs::section(app, ui));
             }
@@ -441,7 +448,7 @@ fn panel_limits(panel: &Panel) -> PanelLimits {
         Panel::Canvas => (egui::vec2(300.0, 180.0), 1_000_000.0),
         Panel::QuickCalc => (egui::vec2(240.0, 160.0), 600.0),
         Panel::ToolSets => (egui::vec2(220.0, 150.0), 480.0),
-        Panel::Layers | Panel::Properties | Panel::ExternalRefs => (egui::vec2(220.0, 100.0), 720.0),
+        Panel::Layers | Panel::Properties | Panel::Blocks | Panel::ExternalRefs => (egui::vec2(220.0, 100.0), 720.0),
     };
     PanelLimits { min, max: egui::vec2(max_width, 1_000_000.0) }
 }
