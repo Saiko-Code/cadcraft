@@ -277,7 +277,7 @@ fn draw_grid_card(
 
     let tooltip_name = name.to_string();
     let tooltip_desc = desc.to_string();
-    resp.clone().on_hover_ui(|ui| {
+    let resp = resp.on_hover_ui(|ui| {
         ui.horizontal(|ui| {
             let (ir, _) = ui.allocate_exact_size(vec2(16.0, 16.0), Sense::hover());
             icons::paint(ui.painter(), ir, Icon::Blocks, false);
@@ -368,7 +368,7 @@ fn render_list_view(
 
         let tooltip_name = name.to_string();
         let tooltip_count = *count;
-        resp.clone().on_hover_ui(|ui| {
+        let resp = resp.on_hover_ui(|ui| {
             ui.label(RichText::new(&tooltip_name).strong().size(12.5));
             ui.label(RichText::new(crate::tf!("{n} entities", n = tooltip_count)).color(t.text_dim).size(11.0));
             ui.label(RichText::new(crate::tl!("💡 Click to insert • Right-click for options")).color(t.accent).size(10.0));
@@ -404,13 +404,13 @@ fn insert_block(app: &mut CadApp, name: &str) {
 
 /// Truncate `text` to `max_len` graphemes with an ellipsis suffix when exceeding bounds.
 fn truncate_text(text: &str, max_len: usize) -> String {
-    let chars: Vec<char> = text.chars().collect();
-    if chars.len() <= max_len {
+    let char_count = text.chars().count();
+    if char_count <= max_len {
         text.to_string()
     } else if max_len <= 1 {
         "…".to_string()
     } else {
-        let truncated: String = chars.into_iter().take(max_len - 1).collect();
+        let truncated: String = text.chars().take(max_len - 1).collect();
         format!("{truncated}…")
     }
 }
