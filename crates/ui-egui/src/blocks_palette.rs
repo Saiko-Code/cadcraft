@@ -1,4 +1,4 @@
-//! Blocks palette: dockable panel for block management with clean, AutoCAD-parity UI.
+//! Blocks palette: dockable panel for block management with AutoCAD-parity UI.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -14,23 +14,28 @@ use crate::canvas::Xf;
 use crate::icons::{self, Icon};
 use crate::theme::Tokens;
 
+/// Presentation mode for the blocks palette.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum ViewMode {
+    /// Responsive multi-column thumbnail cards.
     Grid,
+    /// Compact single-column detailed list rows.
     List,
 }
 
+/// Per-revision cached vector display lists for block thumbnail previews.
 #[derive(Clone, Default)]
 struct ThumbnailCache {
+    /// Drawing revision counter when these thumbnails were generated.
     revision: u64,
+    /// Cached vector display lists keyed by block name.
     thumbnails: HashMap<String, Option<Arc<DisplayList>>>,
 }
 
-/// The Blocks palette panel content.
+/// Render the blocks palette panel with search, view switcher, and block catalog.
 pub fn blocks_panel(app: &mut CadApp, ui: &mut egui::Ui) {
     let t = Tokens::get();
 
-    // 📋 Collect drawing state
     let Ok(st) = app.session.state() else {
         ui.vertical_centered(|ui| {
             ui.add_space(24.0);
@@ -42,7 +47,6 @@ pub fn blocks_panel(app: &mut CadApp, ui: &mut egui::Ui) {
     let doc = st.doc.clone();
     let revision = st.revision;
 
-    // 📊 Pre-compute block info (name, count, description)
     let mut block_infos: Vec<(String, usize, String)> = doc
         .blocks
         .iter()
@@ -50,18 +54,15 @@ pub fn blocks_panel(app: &mut CadApp, ui: &mut egui::Ui) {
         .map(|(name, block)| (name.clone(), block.entities.len(), block.description.clone()))
         .collect();
 
-    block_infos.sort_by(|a, b| a.0.to_lowercase().cmp(&b.0.to_lowercase()));
+    block_infos.sort_by_key(|a| a.0.to_lowercase());
     let total_count = block_infos.len();
 
-    // 🔍 Search query from temporary UI storage
     let search_id = ui.scope_id().with("blocks_palette_search");
     let mut search_query = ui.data_mut(|d| d.get_temp::<String>(search_id)).unwrap_or_default();
 
-    // 👁️ View mode (Grid / List)
     let view_mode_id = ui.scope_id().with("blocks_palette_view_mode");
     let mut view_mode = ui.data_mut(|d| d.get_temp::<ViewMode>(view_mode_id)).unwrap_or(ViewMode::Grid);
 
-    // 🖼️ Thumbnail cache per drawing revision
     let cache_id = ui.scope_id().with("blocks_palette_thumb_cache");
     let mut cache = ui.data_mut(|d| d.get_temp::<ThumbnailCache>(cache_id)).unwrap_or_default();
     if cache.revision != revision {
@@ -69,7 +70,6 @@ pub fn blocks_panel(app: &mut CadApp, ui: &mut egui::Ui) {
         cache.thumbnails.clear();
     }
 
-    // ─── Pinned Header ──────────────────────────────────────────────
     ui.add_space(4.0);
     ui.horizontal(|ui| {
         ui.spacing_mut().item_spacing = vec2(4.0, 0.0);
@@ -92,7 +92,6 @@ pub fn blocks_panel(app: &mut CadApp, ui: &mut egui::Ui) {
 
     ui.add_space(4.0);
 
-    // ─── Toolbar (Count + View toggles + New Block) ─────────────────
     let filtered_infos: Vec<(String, usize, String)> = block_infos
         .into_iter()
         .filter(|(name, _, _)| search_query.is_empty() || name.to_lowercase().contains(&search_query.to_lowercase()))
@@ -101,19 +100,16 @@ pub fn blocks_panel(app: &mut CadApp, ui: &mut egui::Ui) {
     ui.horizontal(|ui| {
         ui.spacing_mut().item_spacing = vec2(4.0, 0.0);
 
-        // Counter label
         let count_str = if !search_query.is_empty() { format!("{}/{}", filtered_infos.len(), total_count) } else { format!("{total_count}") };
         ui.label(RichText::new(crate::tf!("{n} blocks", n = count_str)).size(11.0).color(t.text_dim));
 
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            // New block button
             if icons::button(ui, Icon::BlockCreate, 20.0, "Create Block (BLOCK)", false).clicked() {
                 app.start("block");
             }
 
             ui.add_space(2.0);
 
-            // View mode toggle
             if icons::button(ui, Icon::List, 20.0, "List View", view_mode == ViewMode::List).clicked() {
                 view_mode = ViewMode::List;
                 ui.data_mut(|d| d.insert_temp(view_mode_id, view_mode));
@@ -129,7 +125,6 @@ pub fn blocks_panel(app: &mut CadApp, ui: &mut egui::Ui) {
     ui.separator();
     ui.add_space(2.0);
 
-    // ─── Content Area (Scrollable) ──────────────────────────────────
     egui::ScrollArea::vertical().id_salt("blocks_palette_scroll").auto_shrink([false, false]).show(ui, |ui| {
         if filtered_infos.is_empty() {
             ui.vertical_centered(|ui| {
@@ -156,7 +151,6 @@ pub fn blocks_panel(app: &mut CadApp, ui: &mut egui::Ui) {
             return;
         }
 
-        // Ensure thumbnails are generated/cached for visible blocks
         for (name, _, _) in &filtered_infos {
             if !cache.thumbnails.contains_key(name) {
                 let dl = doc.block(name).and_then(|block| {
@@ -185,7 +179,7 @@ pub fn blocks_panel(app: &mut CadApp, ui: &mut egui::Ui) {
     ui.data_mut(|d| d.insert_temp(cache_id, cache));
 }
 
-/// 🎨 Responsive, uniformly sized grid layout
+/// Render the block catalog as a responsive grid of cards filling available width.
 fn render_grid_view(
     ui: &mut egui::Ui,
     items: &[(String, usize, String)],
@@ -212,7 +206,7 @@ fn render_grid_view(
     }
 }
 
-/// 🗃️ Uniform card component with thumbnail preview, name, and entity count
+/// Render an individual block card in grid view with vector thumbnail and interaction.
 #[allow(clippy::too_many_arguments)]
 fn draw_grid_card(
     ui: &mut egui::Ui,
@@ -248,16 +242,13 @@ fn draw_grid_card(
     let p = ui.painter();
     p.rect(rect, 6.0, bg, Stroke::new(border_width, border_color), StrokeKind::Inside);
 
-    // Thumbnail container inside card
     let pad = 5.0;
     let thumb_w = w - (pad * 2.0);
     let thumb_h = (h * 0.52).floor();
     let thumb_rect = Rect::from_min_size(pos2(rect.left() + pad, rect.top() + pad), vec2(thumb_w, thumb_h));
 
-    // Thumbnail background (CAD canvas look)
     p.rect(thumb_rect, 4.0, t.canvas, Stroke::new(0.5, t.border), StrokeKind::Inside);
 
-    // Draw preview geometry or fallback icon
     let mut drawn = false;
     if let Some(list) = preview.filter(|l| !l.bounds.is_empty() && !l.prims.is_empty()) {
         let b = list.bounds;
@@ -275,18 +266,15 @@ fn draw_grid_card(
         icons::paint(p, Rect::from_center_size(thumb_rect.center(), vec2(22.0, 22.0)), Icon::Blocks, false);
     }
 
-    // Block label (truncated if too long)
     let max_chars = ((w - 8.0) / 6.8).floor().max(3.0) as usize;
     let short_name = truncate_text(name, max_chars);
 
     let text_center_y = thumb_rect.bottom() + (h - thumb_rect.bottom() + rect.top()) * 0.32;
     p.text(pos2(rect.center().x, text_center_y), Align2::CENTER_CENTER, short_name, FontId::proportional(11.0), t.text);
 
-    // Entity count badge
     let count_center_y = thumb_rect.bottom() + (h - thumb_rect.bottom() + rect.top()) * 0.72;
     p.text(pos2(rect.center().x, count_center_y), Align2::CENTER_CENTER, format!("{count} ent."), FontId::proportional(9.5), t.text_dim);
 
-    // Tooltip with full details
     let tooltip_name = name.to_string();
     let tooltip_desc = desc.to_string();
     resp.clone().on_hover_ui(|ui| {
@@ -303,7 +291,6 @@ fn draw_grid_card(
         ui.label(RichText::new(crate::tl!("💡 Click to insert • Right-click for options")).color(t.accent).size(10.0));
     });
 
-    // Handle clicks & context menu
     if resp.clicked() {
         insert_block(app, name);
     }
@@ -321,7 +308,7 @@ fn draw_grid_card(
     });
 }
 
-/// 📋 List view with compact rows
+/// Render the block catalog as a vertical list of detailed rows.
 fn render_list_view(
     ui: &mut egui::Ui,
     items: &[(String, usize, String)],
@@ -352,7 +339,6 @@ fn render_list_view(
             p.rect_filled(rect, 4.0, bg);
         }
 
-        // Left thumbnail / icon box
         let thumb_rect = Rect::from_min_size(pos2(rect.left() + 4.0, rect.top() + 4.0), vec2(28.0, 28.0));
         p.rect(thumb_rect, 3.0, t.canvas, Stroke::new(0.5, t.border), StrokeKind::Inside);
 
@@ -372,17 +358,14 @@ fn render_list_view(
             icons::paint(p, Rect::from_center_size(thumb_rect.center(), vec2(16.0, 16.0)), Icon::Blocks, false);
         }
 
-        // Block title + count
         p.text(pos2(thumb_rect.right() + 8.0, rect.top() + 10.0), Align2::LEFT_CENTER, name, FontId::proportional(12.0), t.text);
 
         let sub = if desc.is_empty() { format!("{count} ent.") } else { format!("{count} ent. — {desc}") };
         p.text(pos2(thumb_rect.right() + 8.0, rect.bottom() - 9.0), Align2::LEFT_CENTER, sub, FontId::proportional(10.0), t.text_dim);
 
-        // Right insert icon
         let insert_rect = Rect::from_center_size(pos2(rect.right() - 14.0, rect.center().y), vec2(14.0, 14.0));
         icons::paint(p, insert_rect, Icon::Insert, !resp.hovered());
 
-        // Tooltip
         let tooltip_name = name.to_string();
         let tooltip_count = *count;
         resp.clone().on_hover_ui(|ui| {
@@ -391,7 +374,6 @@ fn render_list_view(
             ui.label(RichText::new(crate::tl!("💡 Click to insert • Right-click for options")).color(t.accent).size(10.0));
         });
 
-        // Click / Context Menu
         if resp.clicked() {
             insert_block(app, name);
         }
@@ -412,7 +394,7 @@ fn render_list_view(
     }
 }
 
-/// Helper to trigger block insertion in CADCraft
+/// Invoke the INSERT command with the specified block name.
 fn insert_block(app: &mut CadApp, name: &str) {
     app.start("insert");
     if let Err(e) = app.session.input(Input::Text(name.to_string())) {
@@ -420,7 +402,7 @@ fn insert_block(app: &mut CadApp, name: &str) {
     }
 }
 
-/// Truncate text cleanly with ellipsis if length exceeds `max_len`
+/// Truncate `text` to `max_len` graphemes with an ellipsis suffix when exceeding bounds.
 fn truncate_text(text: &str, max_len: usize) -> String {
     let chars: Vec<char> = text.chars().collect();
     if chars.len() <= max_len {
